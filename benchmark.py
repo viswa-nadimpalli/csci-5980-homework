@@ -26,6 +26,8 @@ def kv_store_operation(op_type, key, value=None):
             response = requests.post(f"{BASE_URL}/{key}", json={'value': value})
         elif op_type == 'get':
             response = requests.get(f"{BASE_URL}/{key}")
+        elif op_type == 'delete':
+            response = requests.delete(f"{BASE_URL}/{key}")
         else:
             raise ValueError("Invalid operation type")
         response.raise_for_status()  # This will raise an error for non-2xx responses
@@ -65,39 +67,43 @@ def monitor_performance():
                   f"Avg Latency: {avg_latency:.5f} sec/ops")
         last_print = time.time()
 
-# Populate the operation queue with mixed 'set' and 'get' requests
-for i in range(NUM_THREADS * OPS_PER_THREAD):
-    op_type = 'get' if i % 2 else 'set'
-    key = f"key_{i}"
-    value = f"value_{i}" if op_type == 'set' else None
-    operations_queue.put((op_type, key, value))
-
-# Create and start worker threads
-threads = [threading.Thread(target=worker_thread) for _ in range(NUM_THREADS)]
-
 # Start the monitoring thread
 monitoring_thread = threading.Thread(target=monitor_performance, daemon=True)
 monitoring_thread.start()
 
-# Starting benchmark
-start_time = time.time()
-start_event.set()  # Signal threads to start
+for op_type in ['set', 'get', 'delete']:
+    # Populate the operation queue with requests
+    for i in range(NUM_THREADS * OPS_PER_THREAD):
+        key = f"key_{i}"
+        value = f"value_{i}"
+        operations_queue.put((op_type, key, value))
 
-for thread in threads:
-    thread.start()
+    # Create and start worker threads
+    threads = [threading.Thread(target=worker_thread) for _ in range(NUM_THREADS)]
 
-for thread in threads:
-    thread.join()
+    # Starting benchmark
+    start_time = time.time()
+    start_event.clear()
 
-# Calculate final results
-total_time = time.time() - start_time
-total_ops = NUM_THREADS * OPS_PER_THREAD * 2  # times two for 'set' and 'get'
-total_latencies = list(latencies_queue.queue)
-average_latency = sum(total_latencies) / len(total_latencies) if total_latencies else float('nan')
-throughput = total_ops / total_time
+    for thread in threads:
+        thread.start()
 
-print("\nFinal Results:")
-print(f"Total operations: {total_ops}")
-print(f"Total time: {total_time:.2f} seconds")
-print(f"Throughput: {throughput:.2f} operations per second")
-print(f"Average Latency: {average_latency:.5f} seconds per operation")
+    start_event.set()  # Signal threads to start
+
+    for thread in threads:
+        thread.join()
+
+    # Calculate final results
+    total_time = time.time() - start_time
+    total_ops = NUM_THREADS * OPS_PER_THREAD 
+    total_latencies = list(latencies_queue.queue)
+    while not latencies_queue.empty():
+        latencies_queue.get()
+    average_latency = sum(total_latencies) / len(total_latencies) if total_latencies else float('nan')
+    throughput = total_ops / total_time
+
+    print(f"\n'{op_type}' Final Results:")
+    print(f"Total operations: {total_ops}")
+    print(f"Total time: {total_time:.2f} seconds")
+    print(f"Throughput: {throughput:.2f} operations per second")
+    print(f"Average Latency: {average_latency:.5f} seconds per operation")

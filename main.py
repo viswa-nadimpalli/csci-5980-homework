@@ -4,7 +4,6 @@ import asyncio
 import logging
 import json
 import os
-import atexit
 from pydantic import BaseModel
 
 app = FastAPI()
