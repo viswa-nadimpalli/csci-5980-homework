@@ -1,0 +1,8 @@
+README.md
+main.py
+pyproject.toml
+hw1_basic_kv_store.egg-info/PKG-INFO
+hw1_basic_kv_store.egg-info/SOURCES.txt
+hw1_basic_kv_store.egg-info/dependency_links.txt
+hw1_basic_kv_store.egg-info/requires.txt
+hw1_basic_kv_store.egg-info/top_level.txt

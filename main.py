@@ -29,19 +29,18 @@ logger.addHandler(_file)
 kv_store = {} # {key (str): value (str)}
 
 # LOCKS
-key_locks = {} # {key (str): lock (asyncio.Lock)}
+# key_locks = {} # {key (str): lock (asyncio.Lock)}
+# key_locks_lock = asyncio.Lock()
 
-key_locks_lock = asyncio.Lock()
+save_task = asyncio.Task #| None = None
 
-save_task = asyncio.Task
-
-async def get_lock_for_key(key):
+'''async def get_lock_for_key(key):
     async with key_locks_lock:
         lock = key_locks.get(key)
         if lock is None:
             lock = asyncio.Lock()
             key_locks[key] = lock
-        return lock
+        return lock'''
 
 def save_to_disk(snapshot):
     tmp = DATA_FILE + ".tmp"
@@ -66,23 +65,20 @@ async def periodic_save():
     while True:
         await asyncio.sleep(INTERVAL_SAVE_SECONDS)
 
-        async with key_locks_lock:
-            locks = list(key_locks.values())
+        # async with key_locks_lock:
+        #     locks = list(key_locks.values())
         
-        for lock in locks:
-            await lock.acquire()
+        # for lock in locks:
+            # await lock.acquire()
 
         snapshot = dict(kv_store)
 
-        for lock in locks:
-            lock.release()
+        # for lock in locks:
+            # lock.release()
         
-        await asyncio.to_thread(save_to_disk, snapshot)
+        # await asyncio.to_thread(save_to_disk, snapshot)
+        save_to_disk(snapshot)
         logger.info(f"Saved key-value to disk.")
-
-def cleanup():
-    logger.info("EXIT")
-    save_to_disk()
 
 # ---- STARTUP AND SHUTDOWN ----
 @app.on_event("startup")
@@ -94,6 +90,7 @@ async def on_startup():
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    
     global save_task
 
     if save_task is not None:
@@ -109,32 +106,34 @@ class ValueRequest(BaseModel):
 
 # ---- API ENDPOINTS ----
 @app.post("/key_{key}")
-async def put_key_value(key: str, body: ValueRequest):
+def put_key_value(key: str, body: ValueRequest):
     # concurrency / locking
-    lock = await get_lock_for_key(key)
-    async with lock:
-        kv_store[key] = body.value
+    # lock = await get_lock_for_key(key)
+    # async with lock:
+    kv_store[key] = body.value
+    
     logger.info(f"PUT key='{key}' value='{body.value}'")
     return {"message": f"Key '{key}' set successfully."}
 
 @app.get("/key_{key}")
-async def get_key_value(key: str):
-    lock = await get_lock_for_key(key)
-    async with lock:
-        if key not in kv_store:
-            logger.info(f"GET key='{key}' miss")
-            raise HTTPException(status_code=404, detail=f"Key '{key}' not found.")
-        value = kv_store[key]
+def get_key_value(key: str):
+    # lock = await get_lock_for_key(key)
+    # async with lock:
+    if key not in kv_store:
+        logger.info(f"GET key='{key}' miss")
+        raise HTTPException(status_code=404, detail=f"Key '{key}' not found.")
+    value = kv_store[key]
     logger.info(f"GET key='{key}' value='{value}'")
     return {"key": key, "value": value}
 
 @app.delete("/key_{key}")
-async def delete_key_value(key: str):
-    lock = await get_lock_for_key(key) # need to await to avoid race condition
-    async with lock:
-        if key not in kv_store:
-            raise HTTPException(status_code=404, detail=f"Key '{key}' not found.")
-        del kv_store[key]
+def delete_key_value(key: str):
+    # lock = await get_lock_for_key(key) # need to await to avoid race condition
+    # async with lock:
+    if key not in kv_store:
+        raise HTTPException(status_code=404, detail=f"Key '{key}' not found.")
+    del kv_store[key]
+    
     logger.info(f"DELETE key='{key}'")
     return {"message": f"Key '{key}' deleted successfully."}
 

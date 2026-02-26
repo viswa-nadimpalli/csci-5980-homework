@@ -8,8 +8,8 @@ import random
 BASE_URL = 'http://127.0.0.1:8080'
 
 # Configure the number of threads and operations
-NUM_THREADS = 3
-OPS_PER_THREAD = 100
+NUM_THREADS = 1
+OPS_PER_THREAD = 1000
 PRINT_INTERVAL = 3  # Interval for printing intermediate results
 
 # Queues for managing operations and latencies

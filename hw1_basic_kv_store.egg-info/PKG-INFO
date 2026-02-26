@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: hw1-basic-kv-store
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.129.0
+Requires-Dist: pydantic>=2.12.5
+Requires-Dist: requests>=2.32.5
+Requires-Dist: uvicorn>=0.40.0
+
+# csci-5980-final-project
