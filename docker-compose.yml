@@ -1,0 +1,38 @@
+services:
+  node1:
+    build: .
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"]
+  
+  node2:
+    build: .
+    ports:
+      - "8082:8082"
+    volumes:
+      - .:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8082"]
+
+  node3:
+    build: .
+    ports:
+      - "8083:8083"
+    volumes:
+      - .:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8083"]
+
+  router:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_COUNT=3
+    volumes:
+      - .:/app
+    depends_on:
+      - node1
+      - node2
+      - node3
+    command: ["uvicorn", "router:app", "--host", "0.0.0.0", "--port", "8080"]
