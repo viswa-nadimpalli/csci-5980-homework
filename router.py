@@ -15,6 +15,7 @@ node_count = int(os.environ.get("NODE_COUNT", 3))
 NODES = dict(list(ALL_NODES.items())[:node_count])
 
 ring = HashRing(nodes=NODES)
+client = httpx.AsyncClient()
 
 def get_node_url(key):
     node = ring.get_node(key)
@@ -26,15 +27,15 @@ def get_node_url(key):
 async def put(key: str, request: Request):
     url = f"{get_node_url(key)}/key_{key}"
     body = await request.json()
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=body)
+    # async with httpx.AsyncClient() as client:
+    response = await client.post(url, json=body)
     return response.json()
 
 @app.get("/key_{key}")
 async def get(key: str):
     url = f"{get_node_url(key)}/key_{key}"
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
+    # async with httpx.AsyncClient() as client:
+    response = await client.get(url)
     if response.status_code == 404:
         raise HTTPException(status_code=404, detail=response.json()["detail"])
     return response.json()
@@ -42,8 +43,8 @@ async def get(key: str):
 @app.delete("/key_{key}")
 async def delete(key: str):
     url = f"{get_node_url(key)}/key_{key}"
-    async with httpx.AsyncClient() as client:
-        response = await client.delete(url)
+    # async with httpx.AsyncClient() as client:
+    response = await client.delete(url)
     if response.status_code == 404:
         raise HTTPException(status_code=404, detail=response.json()["detail"])
     return response.json()

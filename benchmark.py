@@ -4,13 +4,34 @@ import requests
 import time
 import random
 
+from uhashring import HashRing
+import httpx
+
 # The base URL of the Flask server
 BASE_URL = 'http://127.0.0.1:8080'
 
 # Configure the number of threads and operations
-NUM_THREADS = 10
-OPS_PER_THREAD = 100
+NUM_THREADS = 4
+OPS_PER_THREAD = 1000
 PRINT_INTERVAL = 3  # Interval for printing intermediate results
+
+ALL_NODES = {
+    "node1": {"host": "http://127.0.0.1:8081"},
+    "node2": {"host": "http://127.0.0.1:8082"},
+    "node3": {"host": "http://127.0.0.1:8083"},
+}
+
+node_count = 3
+NODES = dict(list(ALL_NODES.items())[:node_count])
+
+ring = HashRing(nodes=NODES)
+client = httpx.AsyncClient()
+
+def get_node_url(key):
+    node = ring.get_node(key)
+    # host = NODES[node]
+    # port = NODES[node]
+    return NODES[node]["host"]  # f"http://{host}"
 
 # Queues for managing operations and latencies
 operations_queue = queue.Queue()
@@ -23,11 +44,15 @@ start_event = threading.Event()
 def kv_store_operation(op_type, key, value=None):
     try:
         if op_type == 'set':
-            response = requests.post(f"{BASE_URL}/{key}", json={'value': value})
+            base_url = get_node_url(key)
+            # response = requests.post(f"{BASE_URL}/{key}", json={'value': value})
+            response = requests.post(f"{base_url}/{key}", json={'value': value})
         elif op_type == 'get':
-            response = requests.get(f"{BASE_URL}/{key}")
+            base_url = get_node_url(key)
+            response = requests.get(f"{base_url}/{key}")
         elif op_type == 'delete':
-            response = requests.delete(f"{BASE_URL}/{key}")
+            base_url = get_node_url(key)
+            response = requests.delete(f"{base_url}/{key}")
         else:
             raise ValueError("Invalid operation type")
         response.raise_for_status()  # This will raise an error for non-2xx responses
