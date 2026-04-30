@@ -5,13 +5,12 @@ import time
 import random
 
 from uhashring import HashRing
-import httpx
 
 # The base URL of the Flask server
 BASE_URL = 'http://127.0.0.1:8080'
 
 # Configure the number of threads and operations
-NUM_THREADS = 4
+NUM_THREADS = 50
 OPS_PER_THREAD = 1000
 PRINT_INTERVAL = 3  # Interval for printing intermediate results
 
@@ -25,13 +24,17 @@ node_count = 3
 NODES = dict(list(ALL_NODES.items())[:node_count])
 
 ring = HashRing(nodes=NODES)
-client = httpx.AsyncClient()
 
 def get_node_url(key):
     node = ring.get_node(key)
-    # host = NODES[node]
-    # port = NODES[node]
-    return NODES[node]["host"]  # f"http://{host}"
+    return NODES[node]["host"]
+
+thread_local = threading.local()
+
+def get_session():
+    if not hasattr(thread_local, 'session'):
+        thread_local.session = requests.Session()
+    return thread_local.session
 
 # Queues for managing operations and latencies
 operations_queue = queue.Queue()
@@ -42,20 +45,18 @@ start_event = threading.Event()
 
 # Client operation function
 def kv_store_operation(op_type, key, value=None):
+    session = get_session()
     try:
+        base_url = get_node_url(key)
         if op_type == 'set':
-            base_url = get_node_url(key)
-            # response = requests.post(f"{BASE_URL}/{key}", json={'value': value})
-            response = requests.post(f"{base_url}/{key}", json={'value': value})
+            response = session.post(f"{base_url}/key_{key}", json={'value': value})
         elif op_type == 'get':
-            base_url = get_node_url(key)
-            response = requests.get(f"{base_url}/{key}")
+            response = session.get(f"{base_url}/key_{key}")
         elif op_type == 'delete':
-            base_url = get_node_url(key)
-            response = requests.delete(f"{base_url}/{key}")
+            response = session.delete(f"{base_url}/key_{key}")
         else:
             raise ValueError("Invalid operation type")
-        response.raise_for_status()  # This will raise an error for non-2xx responses
+        response.raise_for_status()
         return True
     except Exception as e:
         print(f"Error during {op_type} operation for key '{key}': {e}")
