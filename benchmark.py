@@ -7,7 +7,7 @@ import random
 from uhashring import HashRing
 
 # The base URL of the Flask server
-BASE_URL = 'http://127.0.0.1:8080'
+# BASE_URL = 'http://127.0.0.1:8080'
 
 # Configure the number of threads and operations
 NUM_THREADS = 50
