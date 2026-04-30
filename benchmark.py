@@ -95,7 +95,7 @@ def monitor_performance():
             avg_latency = sum(latencies) / len(latencies)
             throughput = len(latencies) / elapsed_time
             print(f"[Last {PRINT_INTERVAL} seconds] Throughput: {throughput:.2f} ops/sec, "
-                  f"Avg Latency: {avg_latency:.5f} sec/ops")
+                  f"Avg Latency: {avg_latency * 1000:.3f} ms/op")
         last_print = time.time()
 
 # Start the monitoring thread
@@ -137,5 +137,5 @@ for op_type in ['set', 'get', 'delete']:
     print(f"Total operations: {total_ops}")
     print(f"Total time: {total_time:.2f} seconds")
     print(f"Throughput: {throughput:.2f} operations per second")
-    print(f"Average Latency: {average_latency:.5f} seconds per operation")
+    print(f"Average Latency: {average_latency * 1000:.3f} ms per operation")
     print(f"Error Rate: {error_rate:.2f}%")

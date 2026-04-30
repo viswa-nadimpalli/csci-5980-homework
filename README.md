@@ -1,5 +1,18 @@
 # CSCI 5980 KV Store
 
+## Directory Structure
+
+```
+csci-5980-homework/
+├── main.py              # FastAPI KV store node (set, get, delete endpoints)
+├── benchmark.py         # Benchmarking script with consistent hashing and metrics
+├── Dockerfile           # Container image for the KV store nodes
+├── docker-compose.yml   # Defines the 3-node cluster
+├── pyproject.toml       # Python project metadata and dependencies
+├── uv.lock              # Locked dependency versions
+└── README.md            
+```
+
 ## Starting the Cluster
 
 **Prerequisites:** Docker and Docker Compose installed.
