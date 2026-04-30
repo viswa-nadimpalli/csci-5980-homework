@@ -2,16 +2,12 @@ import threading
 import queue
 import requests
 import time
-import random
 
 from uhashring import HashRing
 
-# The base URL of the Flask server
-# BASE_URL = 'http://127.0.0.1:8080'
-
 # Configure the number of threads and operations
-NUM_THREADS = 50
-OPS_PER_THREAD = 1000
+NUM_THREADS = 5
+OPS_PER_THREAD = 10000
 PRINT_INTERVAL = 3  # Interval for printing intermediate results
 
 ALL_NODES = {
@@ -39,9 +35,9 @@ def get_session():
 # Queues for managing operations and latencies
 operations_queue = queue.Queue()
 latencies_queue = queue.Queue()
-
-# Synchronize the starting of threads
-start_event = threading.Event()
+error_count = 0
+error_lock = threading.Lock()
+phase_start_time = [0.0]  # shared so the monitor can reset its window per phase
 
 # Client operation function
 def kv_store_operation(op_type, key, value=None):
@@ -60,13 +56,20 @@ def kv_store_operation(op_type, key, value=None):
         return True
     except Exception as e:
         print(f"Error during {op_type} operation for key '{key}': {e}")
+        with error_lock:
+            global error_count
+            error_count += 1
         return False
 
-# Worker thread function
-def worker_thread():
-    while not start_event.is_set():
-        # Wait until all threads are ready to start
-        pass
+def worker_thread(barrier):
+    session = get_session()
+    for node_info in NODES.values():
+        try:
+            session.post(f"{node_info['host']}/key_warmup", json={"value": "warmup"})
+        except Exception:
+            pass
+
+    barrier.wait()  # wait until all threads are warmed up, then start together
 
     while not operations_queue.empty():
         op, key, value = operations_queue.get()
@@ -80,6 +83,8 @@ def monitor_performance():
     last_print = time.time()
     while True:
         time.sleep(PRINT_INTERVAL)
+        if phase_start_time[0] > last_print:
+            last_print = phase_start_time[0]
         current_time = time.time()
         elapsed_time = current_time - last_print
         latencies = []
@@ -104,32 +109,33 @@ for op_type in ['set', 'get', 'delete']:
         value = f"value_{i}"
         operations_queue.put((op_type, key, value))
 
-    # Create and start worker threads
-    threads = [threading.Thread(target=worker_thread) for _ in range(NUM_THREADS)]
-
-    # Starting benchmark
-    start_time = time.time()
-    start_event.clear()
+    barrier = threading.Barrier(NUM_THREADS + 1)
+    threads = [threading.Thread(target=worker_thread, args=(barrier,)) for _ in range(NUM_THREADS)]
 
     for thread in threads:
         thread.start()
 
-    start_event.set()  # Signal threads to start
+    error_count = 0
+    barrier.wait()
+    start_time = time.time()
+    phase_start_time[0] = start_time
 
     for thread in threads:
         thread.join()
 
     # Calculate final results
     total_time = time.time() - start_time
-    total_ops = NUM_THREADS * OPS_PER_THREAD 
+    total_ops = NUM_THREADS * OPS_PER_THREAD
     total_latencies = list(latencies_queue.queue)
     while not latencies_queue.empty():
         latencies_queue.get()
     average_latency = sum(total_latencies) / len(total_latencies) if total_latencies else float('nan')
     throughput = total_ops / total_time
+    error_rate = (error_count / total_ops) * 100
 
     print(f"\n'{op_type}' Final Results:")
     print(f"Total operations: {total_ops}")
     print(f"Total time: {total_time:.2f} seconds")
     print(f"Throughput: {throughput:.2f} operations per second")
     print(f"Average Latency: {average_latency:.5f} seconds per operation")
+    print(f"Error Rate: {error_rate:.2f}%")
