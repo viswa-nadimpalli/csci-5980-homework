@@ -13,31 +13,36 @@ csci-5980-homework/
 └── README.md            
 ```
 
-## Starting the Cluster
+## Running the KV stores
 
-**Prerequisites:** Docker and Docker Compose installed.
+Install dependencies:
 
 ```bash
-docker compose up --build
+uv sync
 ```
 
-This builds and starts all 3 nodes:
+Then start each node in a separate terminal:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8081
+```
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8082
+```
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8083
+```
+
+The 3 nodes will be available at:
 - Node 1: `http://localhost:8081`
 - Node 2: `http://localhost:8082`
 - Node 3: `http://localhost:8083`
 
-To stop the cluster:
-
-```bash
-docker compose down
-```
-
 ## Running the Benchmark
 
-With the cluster running, in a separate terminal:
+With the nodes running, run the benchmark outside the container in a separate terminal:
 
 ```bash
-pip install -r requirements.txt
 python benchmark.py
 ```
 
